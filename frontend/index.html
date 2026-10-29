@@ -1,0 +1,503 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food Waste AI Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+  --green: #187747;
+  --dark: #153b2b;
+  --pale: #eaf5ee;
+  --bg: #f4f7f5;
+  --muted: #718078;
+  --border: #e0e9e3;
+}
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(13, 48, 25, 0.25),
+      rgba(13, 48, 25, 0.25)
+    ),
+    url("nature-bg.jpg") center center / cover fixed;
+  color: #26372d;
+  min-height: 100vh;
+}
+
+header {
+  background: white; padding: 22px 5%;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 15px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon {
+  background: var(--pale); border-radius: 12px;
+  padding: 12px; font-size: 27px;
+}
+h1 { font-size: 23px; margin: 0 0 5px; color: var(--dark); }
+.subtitle { font-size: 13px; color: var(--muted); }
+.status {
+  color: var(--green); background: var(--pale);
+  border-radius: 20px; padding: 9px 13px; font-size: 12px;
+}
+main { max-width: 1200px; margin: auto; padding: 28px 20px; }
+.section-heading { margin: 0 0 18px; color: var(--dark); font-size: 20px; }
+.stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px; margin-bottom: 26px;
+}
+.card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 25px rgba(0, 35, 15, 0.16);
+  min-width: 0;
+}
+
+.stat-label { color: var(--muted); font-size: 13px; }
+.stat-value { font-size: 27px; font-weight: bold; color: var(--dark); margin: 13px 0 8px; overflow-wrap: anywhere; }
+.stat-note { color: var(--muted); font-size: 12px; }
+.layout {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 20px; margin-bottom: 25px;
+}
+label { display: block; font-size: 13px; font-weight: bold; margin: 13px 0 7px; }
+input, select {
+  width: 100%; padding: 11px; border: 1px solid #d4e0d7;
+  border-radius: 8px; font-size: 14px; background: white;
+}
+input:focus, select:focus { outline: 2px solid #a7d8b7; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 13px; }
+button {
+  padding: 12px 15px; border: 0; border-radius: 9px;
+  background: var(--green); color: white; font-weight: bold;
+  cursor: pointer; font-size: 14px;
+}
+button:hover { background: #105c35; }
+button:disabled { opacity: .6; cursor: wait; }
+.primary { width: 100%; margin-top: 20px; }
+.secondary {
+  background: white; color: var(--green);
+  border: 1px solid #b8d9c2;
+}
+.secondary:hover { background: var(--pale); }
+.result {
+  display: none; margin-top: 17px; padding: 18px;
+  background: var(--pale); border-radius: 11px; text-align: center;
+}
+.result-number { color: var(--green); font-size: 34px; font-weight: bold; margin: 8px 0; }
+.notice { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 15px; }
+.error {
+  display: none; margin-top: 15px; background: #fff0f0;
+  color: #9c2525; border-radius: 9px; padding: 12px; font-size: 13px;
+}
+.chart-wrap { height: 270px; position: relative; }
+.history-head {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+th, td { padding: 13px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #f7faf8; color: #5b6c61; font-size: 12px; }
+td { color: #34493b; }
+.pill {
+  background: var(--pale); color: var(--green);
+  padding: 5px 8px; border-radius: 20px; font-size: 11px;
+}
+.empty { padding: 25px; text-align: center; color: var(--muted); font-size: 13px; }
+footer { text-align: center; padding: 25px; color: var(--muted); font-size: 12px; }
+@media(max-width: 850px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .layout { grid-template-columns: 1fr; }
+}
+@media(max-width: 480px) {
+  main { padding: 20px 12px; }
+  header { padding: 17px 12px; }
+  .stats { gap: 10px; }
+  .card { padding: 15px; }
+  .stat-value { font-size: 22px; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">🌱</div>
+    <div>
+      <h1>Food Waste AI</h1>
+      <div class="subtitle">Machine Learning Prediction Dashboard</div>
+    </div>
+  </div>
+  <div class="status">● Local ML API</div>
+</header>
+
+<main>
+  <h2 class="section-heading">Dashboard Overview</h2>
+
+  <section class="stats">
+    <div class="card">
+      <div class="stat-label">Total Predictions</div>
+      <div class="stat-value" id="total">0</div>
+      <div class="stat-note">Saved in this browser</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Latest Prediction</div>
+      <div class="stat-value" id="latest">—</div>
+      <div class="stat-note">Estimated food waste</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Average Prediction</div>
+      <div class="stat-value" id="average">—</div>
+      <div class="stat-note">Across saved predictions</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Highest Prediction</div>
+      <div class="stat-value" id="highest">—</div>
+      <div class="stat-note">Largest estimated value</div>
+    </div>
+  </section>
+
+  <section class="layout">
+    <div class="card">
+      <h2 class="section-heading">Predict Food Waste</h2>
+      <p class="subtitle">Enter the kitchen and food details below.</p>
+
+      <form id="form">
+        <div class="form-grid">
+          <div>
+            <label for="meals">Meals Served</label>
+            <input id="meals" type="number" min="0" value="200" required>
+          </div>
+          <div>
+            <label for="staff">Kitchen Staff</label>
+            <input id="staff" type="number" min="0" value="12" required>
+          </div>
+          <div>
+            <label for="temp">Temperature (°C)</label>
+            <input id="temp" type="number" step="any" value="25" required>
+          </div>
+          <div>
+            <label for="humidity">Humidity (%)</label>
+            <input id="humidity" type="number" min="0" max="100" step="any" value="60" required>
+          </div>
+          <div>
+            <label for="weekday">Day of Week</label>
+            <select id="weekday">
+              <option value="0">Monday (0)</option>
+              <option value="1">Tuesday (1)</option>
+              <option value="2" selected>Wednesday (2)</option>
+              <option value="3">Thursday (3)</option>
+              <option value="4">Friday (4)</option>
+              <option value="5">Saturday (5)</option>
+              <option value="6">Sunday (6)</option>
+            </select>
+          </div>
+          <div>
+            <label for="event">Special Event?</label>
+            <select id="event">
+              <option value="0" selected>No</option>
+              <option value="1">Yes</option>
+            </select>
+          </div>
+          <div>
+            <label for="past">Previous Waste (kg)</label>
+            <input id="past" type="number" min="0" step="any" value="20" required>
+          </div>
+          <div>
+            <label for="experience">Staff Experience</label>
+            <select id="experience">
+              <option>Beginner</option>
+              <option selected>Intermediate</option>
+              <option>Expert</option>
+              <option>Unknown</option>
+            </select>
+          </div>
+          <div>
+            <label for="category">Food Category</label>
+            <select id="category">
+              <option>Meat</option>
+              <option>Dairy</option>
+              <option selected>Vegetables</option>
+              <option>Grains</option>
+            </select>
+          </div>
+          <div>
+            <label for="date">Prediction Date</label>
+            <input id="date" type="date" required>
+          </div>
+        </div>
+        <button class="primary" id="predict" type="submit">Predict Food Waste</button>
+      </form>
+
+      <div class="result" id="result" aria-live="polite">
+        <div>Estimated Food Waste</div>
+        <div class="result-number" id="resultNumber">— kg</div>
+        <div class="subtitle" id="resultCategory"></div>
+        <div class="notice" id="resultNotice"></div>
+      </div>
+      <div class="error" id="error" role="alert"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-heading">Prediction Trend</h2>
+      <p class="subtitle">Recent saved predictions, in kilograms.</p>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      <p class="notice">This chart displays model estimates, not measured waste.</p>
+    </div>
+  </section>
+
+  <section class="layout">
+    <div class="card">
+      <h2 class="section-heading">Food Category Breakdown</h2>
+      <p class="subtitle">Number of saved predictions per category.</p>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2 class="section-heading">About This Model</h2>
+      <p style="line-height:1.8;font-size:14px">
+        This prototype uses a Random Forest regression model to estimate food waste
+        from kitchen activity, environmental conditions, previous waste, and food category.
+      </p>
+      <p style="line-height:1.8;font-size:14px">
+        <strong>Research limitation:</strong> the model was trained on a practice
+        dataset. It has not been validated for fruit and vegetable wholesale markets.
+        Predictions should not be treated as measured quantities.
+      </p>
+      <p class="notice">History is stored locally in this browser. It is not shared with a database.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="history-head">
+      <div>
+        <h2 class="section-heading" style="margin-bottom:5px">Prediction History</h2>
+        <div class="subtitle">Your most recent saved model predictions</div>
+      </div>
+      <button class="secondary" id="clearHistory" type="button">Clear History</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Food Category</th><th>Meals</th>
+            <th>Previous Waste</th><th>Predicted Waste</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <div class="empty" id="emptyHistory">No predictions yet. Make your first prediction above.</div>
+    </div>
+  </section>
+</main>
+
+<footer>Food Waste AI Dashboard · Academic Prototype</footer>
+
+<script>
+const API_URL = "http://127.0.0.1:8000/predict";
+const STORAGE_KEY = "foodWastePredictionHistory";
+const $ = id => document.getElementById(id);
+
+let history = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  history = Array.isArray(saved) ? saved : [];
+} catch {
+  history = [];
+}
+
+let trendChart = null;
+let categoryChart = null;
+
+function todayString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+$("date").value = todayString();
+
+function saveHistory() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    showError("Could not save history in this browser.");
+  }
+}
+
+function showError(message) {
+  $("error").textContent = message;
+  $("error").style.display = "block";
+}
+
+function renderDashboard() {
+  const values = history.map(item => Number(item.prediction)).filter(Number.isFinite);
+  $("total").textContent = values.length;
+  $("latest").textContent = values.length ? values[0].toFixed(2) + " kg" : "—";
+  $("average").textContent = values.length
+    ? (values.reduce((a,b) => a+b,0)/values.length).toFixed(2) + " kg" : "—";
+  $("highest").textContent = values.length ? Math.max(...values).toFixed(2) + " kg" : "—";
+
+  const tbody = $("historyBody");
+  tbody.replaceChildren();
+  $("emptyHistory").style.display = history.length ? "none" : "block";
+
+  history.slice(0,50).forEach(item => {
+    const tr = document.createElement("tr");
+    const cells = [
+      item.date,
+      item.category,
+      item.meals,
+      Number(item.past).toFixed(2) + " kg",
+      Number(item.prediction).toFixed(2) + " kg"
+    ];
+    cells.forEach((value, index) => {
+      const td = document.createElement("td");
+      if (index === 1) {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = value;
+        td.appendChild(pill);
+      } else {
+        td.textContent = value;
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  renderCharts();
+}
+
+function renderCharts() {
+  if (typeof Chart === "undefined") return;
+
+  const recent = history.slice(0,15).reverse();
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart($("trendChart"), {
+    type: "line",
+    data: {
+      labels: recent.map(item => item.date),
+      datasets: [{
+        label: "Predicted waste (kg)",
+        data: recent.map(item => Number(item.prediction)),
+        borderColor: "#187747",
+        backgroundColor: "rgba(24,119,71,0.12)",
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const categories = ["Meat","Dairy","Vegetables","Grains"];
+  const counts = categories.map(category =>
+    history.filter(item => item.category === category).length
+  );
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart($("categoryChart"), {
+    type: "doughnut",
+    data: {
+      labels: categories,
+      datasets: [{
+        data: counts,
+        backgroundColor: ["#187747","#81b89a","#e4bb6b","#7299c5"]
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } }
+    }
+  });
+}
+
+$("form").addEventListener("submit", async event => {
+  event.preventDefault();
+  $("error").style.display = "none";
+  $("result").style.display = "none";
+
+  const button = $("predict");
+  button.disabled = true;
+  button.textContent = "Predicting...";
+
+  try {
+    const [year, month, day] = $("date").value.split("-").map(Number);
+    const input = {
+      meals_served: Number($("meals").value),
+      kitchen_staff: Number($("staff").value),
+      temperature_C: Number($("temp").value),
+      humidity_percent: Number($("humidity").value),
+      day_of_week: Number($("weekday").value),
+      special_event: Number($("event").value),
+      past_waste_kg: Number($("past").value),
+      year, month, day,
+      staff_experience: $("experience").value,
+      waste_category: $("category").value
+    };
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+
+    const answer = await response.json();
+    if (!response.ok) {
+      throw new Error(answer.detail || "The prediction request failed.");
+    }
+
+    const prediction = Number(answer.predicted_food_waste_kg);
+    $("resultNumber").textContent = prediction.toFixed(2) + " kg";
+    $("resultCategory").textContent = "Category: " + input.waste_category;
+    $("resultNotice").textContent = answer.notice || "Practice model prediction.";
+    $("result").style.display = "block";
+
+    history.unshift({
+      date: $("date").value,
+      category: input.waste_category,
+      meals: input.meals_served,
+      past: input.past_waste_kg,
+      prediction,
+      createdAt: new Date().toISOString()
+    });
+    history = history.slice(0,100);
+    saveHistory();
+    renderDashboard();
+
+  } catch (error) {
+    showError("Prediction failed: " + error.message +
+      ". Check that FastAPI is running and the internet is available for chart loading.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Predict Food Waste";
+  }
+});
+
+$("clearHistory").addEventListener("click", () => {
+  if (!confirm("Clear all saved prediction history from this browser?")) return;
+  history = [];
+  saveHistory();
+  renderDashboard();
+});
+
+renderDashboard();
+</script>
+</body>
+</html>
